@@ -1,0 +1,97 @@
+### 1. جلب كل المستخدمين (GET)
+
+GET http://localhost:3000/users
+
+
+### 2. إنشاء مستخدم جديد (POST)
+
+POST http://localhost:3000/api/v1/users/signup
+Content-Type: application/json
+
+{
+  "email": "youssefsameh15000@gmail.com",
+  "name": "yousseffff",
+  "password": "mySuperSecretPassword123"
+}
+
+
+### 3. تسجيل الدخول (Login) 🔑
+POST http://localhost:3000/api/v1/users/login
+Content-Type: application/json
+
+{
+  "email": "youssefsameh15000@gmail.com",
+  "password": "mySuperSecretPassword123"
+}
+
+
+
+### 4. تحديث بيانات مستخدم (PUT)
+
+PUT http://localhost:3000/users/16
+
+Content-Type: application/json
+
+
+{
+
+  "email": "youssefsameh_updateddd@gmail.com",
+
+  "name": "Youssef Sameh"
+
+}
+
+
+### 5. تحديث الباسورد (PATCH)
+
+PATCH http://localhost:3000/users/16/change-password
+
+Content-Type: application/json
+
+
+{
+
+  "oldPassword": "mySuperSecretPassword123",
+
+  "newPassword": "youssefNewSecurePass2026"
+
+}
+
+
+### 6. حذف مستخدم (DELETE)
+
+DELETE http://localhost:3000/users/11
+
+
+### =======================================================
+
+### 🌟 قسم اختبار الـ To-Dos المحمية بالحارس 🕵️‍♂️
+
+### =======================================================
+
+
+### 7. إنشاء تاسك جديدة (حط التوكن هنا بعد كلمة Bearer)
+
+POST http://localhost:3000/api/v1/expenses
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzgxMTYxOTY0LCJleHAiOjE3ODg5Mzc5NjR9.Q1QLg3X-DVyw3uQPOExTCGUhR75KqQhLsPS2HvKc30M
+
+{
+  "amount": 152.5,
+  "type": "expense",
+  "category": "food",
+  "customCategory": "Lunch"
+}
+
+
+### 8. جلب جميع تاسكات اليوزر الحالي بس
+
+GET http://localhost:3000/api/v1/expenses
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzgxMTYxOTY0LCJleHAiOjE3ODg5Mzc5NjR9.Q1QLg3X-DVyw3uQPOExTCGUhR75KqQhLsPS2HvKc30M
+
+
+### 9. calculating the sum of expensses
+
+get http://localhost:3000/api/v1/expenses/summary?startDate=2026-06-01&endDate=2026-06-11
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzgxMTYxOTY0LCJleHAiOjE3ODg5Mzc5NjR9.Q1QLg3X-DVyw3uQPOExTCGUhR75KqQhLsPS2HvKc30M
+

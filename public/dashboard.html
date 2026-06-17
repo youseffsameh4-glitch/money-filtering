@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Money Filter — Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #181c27; --surface2: #1e2333;
+    --border: rgba(255,255,255,0.08); --accent: #4f8ef7;
+    --accent-dark: #3a72d8; --accent-glow: rgba(79,142,247,0.18);
+    --text: #e8eaf0; --muted: #7b8196; --error: #f25a5a;
+    --success: #3ecf8e; --income: #3ecf8e; --expense: #f25a5a;
+    --radius: 14px; --radius-sm: 8px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 10%, rgba(79,142,247,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 90% 90%, rgba(62,207,142,0.04) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+  .navbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(24,28,39,0.9); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem; height: 60px;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1rem; }
+  .nav-brand-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #6c63ff);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .nav-right { display: flex; align-items: center; gap: 1rem; }
+  .nav-user { font-size: 0.85rem; color: var(--muted); }
+  .btn-logout {
+    padding: 0.4rem 0.9rem; background: transparent;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--muted); font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--error); color: var(--error); }
+  .main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+  }
+  .summary-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .summary-card .amount { font-size: 1.6rem; font-weight: 700; }
+  .summary-card .amount.income { color: var(--income); }
+  .summary-card .amount.expense { color: var(--expense); }
+  .summary-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 0.95rem; font-weight: 600; }
+  .field { margin-bottom: 0.9rem; }
+  .field label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .field input, .field select {
+    width: 100%; padding: 0.65rem 0.85rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 0.875rem;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .field input::placeholder { color: var(--muted); }
+  .field select option { background: var(--surface2); }
+  .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .date-hint { font-size: 0.72rem; color: var(--muted); margin-top: -6px; margin-bottom: 8px; }
+  .type-toggle { display: flex; gap: 8px; margin-bottom: 0.9rem; }
+  .type-btn {
+    flex: 1; padding: 0.6rem; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: transparent;
+    color: var(--muted); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  }
+  .type-btn.income.active { background: rgba(62,207,142,0.12); border-color: var(--income); color: var(--income); }
+  .type-btn.expense.active { background: rgba(242,90,90,0.12); border-color: var(--expense); color: var(--expense); }
+  .btn-primary {
+    width: 100%; padding: 0.7rem; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-sm); font-size: 0.875rem;
+    font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .summary-result {
+    margin-top: 1rem; padding: 1rem; background: var(--surface2);
+    border-radius: var(--radius-sm); text-align: center; display: none;
+  }
+  .summary-result .res-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+  .summary-result .res-amount { font-size: 1.5rem; font-weight: 700; color: var(--expense); }
+  .breakdown-item { margin-bottom: 10px; text-align: left; }
+  .breakdown-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .breakdown-cat { font-size: 0.8rem; }
+  .breakdown-amt { font-size: 0.8rem; font-weight: 600; color: var(--expense); }
+  .breakdown-pct { color: var(--muted); font-weight: 400; }
+  .breakdown-bar-bg { height: 4px; background: var(--border); border-radius: 2px; }
+  .breakdown-bar-fill { height: 4px; background: var(--expense); border-radius: 2px; transition: width 0.5s; }
+  .breakdown-wrap { border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.25rem; text-align: left; }
+  .tx-filters { display: flex; gap: 8px; }
+  .filter-btn {
+    padding: 0.35rem 0.8rem; border: 1px solid var(--border);
+    border-radius: 20px; background: transparent; color: var(--muted);
+    font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+  }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tx-list { display: flex; flex-direction: column; gap: 8px; }
+  .tx-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1rem; background: var(--surface2);
+    border-radius: var(--radius-sm); border: 1px solid var(--border); transition: border-color 0.2s;
+  }
+  .tx-item:hover { border-color: rgba(255,255,255,0.15); }
+  .tx-left { display: flex; align-items: center; gap: 12px; }
+  .tx-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .tx-icon.income { background: rgba(62,207,142,0.12); }
+  .tx-icon.expense { background: rgba(242,90,90,0.12); }
+  .tx-info .tx-category { font-size: 0.875rem; font-weight: 500; }
+  .tx-info .tx-date { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .tx-right { display: flex; align-items: center; gap: 12px; }
+  .tx-amount { font-size: 0.95rem; font-weight: 600; }
+  .tx-amount.income { color: var(--income); }
+  .tx-amount.expense { color: var(--expense); }
+  .btn-delete { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 6px; border-radius: 6px; transition: all 0.2s; }
+  .btn-delete:hover { background: rgba(242,90,90,0.12); color: var(--error); }
+  .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); font-size: 0.875rem; }
+  .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .loading { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; }
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.65rem 1.1rem;
+    font-size: 0.85rem; transition: transform 0.3s ease; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--error); color: var(--error); }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  @media (max-width: 768px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .content-grid { grid-template-columns: 1fr; }
+    .navbar { padding: 0 1rem; }
+    .main { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <div class="nav-brand-icon">💰</div>
+    Money Filter
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-username"></span>
+    <button class="btn-logout" id="btn-logout">Sign out</button>
+  </div>
+</nav>
+
+<div class="main">
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Total Income</div>
+      <div class="amount income" id="total-income">$0.00</div>
+      <div class="sub">All time</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Expenses</div>
+      <div class="amount expense" id="total-expense">$0.00</div>
+      <div class="sub">All time</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Balance</div>
+      <div class="amount" id="total-balance">$0.00</div>
+      <div class="sub">Income − Expenses</div>
+    </div>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- TRANSACTIONS LIST -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Transactions</div>
+        <div class="tx-filters">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="income">Income</button>
+          <button class="filter-btn" data-filter="expense">Expense</button>
+        </div>
+      </div>
+      <div class="tx-list" id="tx-list">
+        <div class="loading">Loading transactions...</div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+      <!-- ADD TRANSACTION -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Add Transaction</div>
+        </div>
+
+        <div class="type-toggle">
+          <button class="type-btn income active" id="type-income">⬆ Income</button>
+          <button class="type-btn expense" id="type-expense">⬇ Expense</button>
+        </div>
+
+        <div class="field">
+          <label>Amount</label>
+          <input type="number" id="tx-amount" placeholder="0.00" min="0" step="0.01" />
+        </div>
+
+        <div class="field">
+          <label>Category</label>
+          <select id="tx-category">
+            <option value="">Select category</option>
+            <optgroup label="Income">
+              <option value="salary">Salary</option>
+              <option value="freelance">Freelance</option>
+              <option value="investment">Investment</option>
+              <option value="gift">Gift</option>
+            </optgroup>
+            <optgroup label="Expense">
+              <option value="food">Food</option>
+              <option value="transport">Transport</option>
+              <option value="housing">Housing</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="health">Health</option>
+              <option value="education">Education</option>
+              <option value="shopping">Shopping</option>
+            </optgroup>
+            <option value="other">Other (custom)</option>
+          </select>
+        </div>
+
+        <div class="field" id="custom-cat-field" style="display:none">
+          <label>Custom Category</label>
+          <input type="text" id="tx-custom-category" placeholder="Enter category name" />
+        </div>
+
+        <div class="field">
+          <label>Date <span style="color:var(--muted);font-size:0.7rem;text-transform:none">(optional — defaults to today)</span></label>
+          <input type="date" id="tx-date" />
+        </div>
+
+        <button class="btn-primary" id="btn-add-tx">Add Transaction</button>
+      </div>
+
+      <!-- EXPENSE SUMMARY BY DATE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Expense Summary</div>
+        </div>
+        <p class="date-hint">Pick a start date, end date is optional</p>
+        <div class="date-row">
+          <div class="field">
+            <label>Start Date</label>
+            <input type="date" id="sum-start" />
+          </div>
+          <div class="field">
+            <label>End Date <span style="color:var(--muted);font-size:0.65rem">(optional)</span></label>
+            <input type="date" id="sum-end" />
+          </div>
+        </div>
+        <button class="btn-primary" id="btn-summary">Calculate</button>
+        <div class="summary-result" id="summary-result">
+          <div class="res-label">Total Expenses</div>
+          <div class="res-amount" id="res-amount">$0.00</div>
+          <div class="res-label" id="res-period" style="margin-top:4px"></div>
+          <div id="res-breakdown"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  var API = '/api/v1';
+  var token = localStorage.getItem('token');
+  if (!token) { window.location.href = '/index.html'; }
+
+  function $(id) { return document.getElementById(id); }
+
+  var toastTimer;
+  function showToast(msg, type) {
+    var t = $('toast');
+    t.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;
+    t.className = 'toast show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3500);
+  }
+
+  function fmt(n) { return '$' + parseFloat(n || 0).toFixed(2); }
+
+  function fmtDate(d) {
+    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  var icons = {
+    salary: '💼', freelance: '💻', investment: '📈', gift: '🎁',
+    food: '🍔', transport: '🚗', housing: '🏠', entertainment: '🎬',
+    health: '❤️', education: '📚', shopping: '🛍️', other: '📦'
+  };
+
+  var allTransactions = [];
+  var currentFilter = 'all';
+  var selectedType = 'income';
+
+  var today = new Date().toISOString().split('T')[0];
+  $('tx-date').value = today;
+  $('sum-start').value = today;
+
+  $('btn-logout').addEventListener('click', function() {
+    localStorage.removeItem('token');
+    window.location.href = '/index.html';
+  });
+
+  $('type-income').addEventListener('click', function() {
+    selectedType = 'income';
+    $('type-income').classList.add('active');
+    $('type-expense').classList.remove('active');
+  });
+  $('type-expense').addEventListener('click', function() {
+    selectedType = 'expense';
+    $('type-expense').classList.add('active');
+    $('type-income').classList.remove('active');
+  });
+
+  $('tx-category').addEventListener('change', function() {
+    $('custom-cat-field').style.display = this.value === 'other' ? 'block' : 'none';
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderTransactions();
+    });
+  });
+
+  async function loadTransactions() {
+    try {
+      var res = await fetch(API + '/expenses', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/index.html'; return; }
+      var data = await res.json();
+      allTransactions = data.data || [];
+      renderTransactions();
+      updateSummaryCards();
+    } catch(e) {
+      $('tx-list').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load transactions</div>';
+    }
+  }
+
+  function renderTransactions() {
+    var filtered = allTransactions;
+    if (currentFilter !== 'all') {
+      filtered = allTransactions.filter(function(t) { return t.type === currentFilter; });
+    }
+    if (filtered.length === 0) {
+      $('tx-list').innerHTML = '<div class="empty-state"><div class="icon">📭</div>No transactions yet</div>';
+      return;
+    }
+    var html = '';
+    filtered.forEach(function(tx) {
+      var cat = tx.customCategory || tx.category || 'other';
+      var displayCat = cat.charAt(0).toUpperCase() + cat.slice(1);
+      var icon = icons[tx.category] || '📦';
+      html += '<div class="tx-item">' +
+        '<div class="tx-left">' +
+          '<div class="tx-icon ' + tx.type + '">' + icon + '</div>' +
+          '<div class="tx-info">' +
+            '<div class="tx-category">' + displayCat + '</div>' +
+            '<div class="tx-date">' + fmtDate(tx.date) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="tx-right">' +
+          '<div class="tx-amount ' + tx.type + '">' + (tx.type === 'income' ? '+' : '-') + fmt(tx.amount) + '</div>' +
+          '<button class="btn-delete" data-id="' + tx.id + '">🗑</button>' +
+        '</div>' +
+      '</div>';
+    });
+    $('tx-list').innerHTML = html;
+    document.querySelectorAll('.btn-delete').forEach(function(btn) {
+      btn.addEventListener('click', function() { deleteTransaction(btn.dataset.id); });
+    });
+  }
+
+  function updateSummaryCards() {
+    var income = 0; var expense = 0;
+    allTransactions.forEach(function(t) {
+      if (t.type === 'income') income += parseFloat(t.amount);
+      else expense += parseFloat(t.amount);
+    });
+    $('total-income').textContent = fmt(income);
+    $('total-expense').textContent = fmt(expense);
+    var balance = income - expense;
+    var balEl = $('total-balance');
+    balEl.textContent = fmt(balance);
+    balEl.style.color = balance >= 0 ? 'var(--income)' : 'var(--expense)';
+  }
+
+  $('btn-add-tx').addEventListener('click', async function() {
+    var amount = $('tx-amount').value;
+    var category = $('tx-category').value;
+    var customCategory = $('tx-custom-category').value.trim();
+    var date = $('tx-date').value;
+
+    if (!amount || parseFloat(amount) <= 0) { showToast('Enter a valid amount', 'error'); return; }
+    if (!category) { showToast('Select a category', 'error'); return; }
+
+    if (!date) { date = today; }
+
+    var body = {
+      amount: parseFloat(amount),
+      type: selectedType,
+      category: category,
+      customCategory: customCategory || null,
+      date: date
+    };
+
+    try {
+      var res = await fetch(API + '/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to add transaction');
+      showToast('Transaction added!', 'success');
+      $('tx-amount').value = '';
+      $('tx-category').value = '';
+      $('tx-custom-category').value = '';
+      $('custom-cat-field').style.display = 'none';
+      $('tx-date').value = today;
+      loadTransactions();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  });
+
+  async function deleteTransaction(id) {
+    try {
+      var res = await fetch(API + '/expenses/' + id, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete');
+      showToast('Transaction deleted', 'success');
+      loadTransactions();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  $('btn-summary').addEventListener('click', async function() {
+    var startDate = $('sum-start').value;
+    var endDate = $('sum-end').value;
+    if (!startDate) { showToast('Please select a start date', 'error'); return; }
+    var url = API + '/expenses/summary?startDate=' + startDate;
+    if (endDate) url += '&endDate=' + endDate;
+    try {
+      var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to get summary');
+
+      $('res-amount').textContent = fmt(data.data.totalAmount);
+      $('res-period').textContent = (endDate && endDate !== startDate)
+        ? fmtDate(startDate) + ' → ' + fmtDate(endDate)
+        : fmtDate(startDate);
+
+      var breakdown = data.data.breakdown || [];
+      var total = data.data.totalAmount || 1;
+
+      if (breakdown.length === 0) {
+        $('res-breakdown').innerHTML = '';
+      } else {
+        var bhtml = '<div class="breakdown-wrap">';
+        breakdown.forEach(function(b) {
+          var cat = b.category || 'other';
+          var displayCat = cat.charAt(0).toUpperCase() + cat.slice(1);
+          var pct = Math.round((b.amount / total) * 100);
+          var icon = icons[cat] || '📦';
+          bhtml +=
+            '<div class="breakdown-item">' +
+              '<div class="breakdown-row">' +
+                '<span class="breakdown-cat">' + icon + ' ' + displayCat + '</span>' +
+                '<span class="breakdown-amt">' + fmt(b.amount) + ' <span class="breakdown-pct">(' + pct + '%)</span></span>' +
+              '</div>' +
+              '<div class="breakdown-bar-bg">' +
+                '<div class="breakdown-bar-fill" style="width:' + pct + '%"></div>' +
+              '</div>' +
+            '</div>';
+        });
+        bhtml += '</div>';
+        $('res-breakdown').innerHTML = bhtml;
+      }
+
+      $('summary-result').style.display = 'block';
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  });
+
+  loadTransactions();
+</script>
+</body>
+</html>

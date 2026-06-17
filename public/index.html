@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Money Filter — Auth</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #181c27; --surface2: #1e2333;
+    --border: rgba(255,255,255,0.08); --accent: #4f8ef7;
+    --accent-dark: #3a72d8; --accent-glow: rgba(79,142,247,0.18);
+    --text: #e8eaf0; --muted: #7b8196; --error: #f25a5a;
+    --success: #3ecf8e; --radius: 14px; --radius-sm: 8px;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, sans-serif; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(79,142,247,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(62,207,142,0.05) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+  .wrapper { position: relative; z-index: 1; width: 100%; max-width: 420px; }
+  .brand { text-align: center; margin-bottom: 2rem; }
+  .brand-icon {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--accent) 0%, #6c63ff 100%);
+    border-radius: 14px; display: inline-flex; align-items: center;
+    justify-content: center; margin-bottom: 0.75rem; font-size: 24px;
+  }
+  .brand h1 { font-size: 1.35rem; font-weight: 600; }
+  .brand p { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 2rem;
+  }
+  .tabs {
+    display: flex; background: var(--surface2); border-radius: var(--radius-sm);
+    padding: 4px; margin-bottom: 1.75rem; gap: 4px;
+  }
+  .tab-btn {
+    flex: 1; padding: 0.5rem; border: none; background: transparent;
+    color: var(--muted); font-size: 0.875rem; font-weight: 500;
+    border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .field { margin-bottom: 1rem; }
+  .field label {
+    display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted);
+    margin-bottom: 6px; letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .field input {
+    width: 100%; padding: 0.7rem 0.9rem; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: 0.9rem; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .field input::placeholder { color: var(--muted); }
+  .input-wrap { position: relative; }
+  .input-wrap input { padding-right: 2.5rem; }
+  .eye-btn {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    font-size: 16px; padding: 4px;
+  }
+  .btn-primary {
+    width: 100%; padding: 0.75rem; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-sm); font-size: 0.9rem;
+    font-weight: 600; cursor: pointer; margin-top: 0.25rem; transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .forgot-link {
+    display: block; text-align: right; font-size: 0.8rem; color: var(--accent);
+    margin-top: -6px; margin-bottom: 1rem; cursor: pointer;
+  }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem;
+    color: var(--muted); cursor: pointer; margin-bottom: 1.25rem;
+    border: none; background: none; padding: 0;
+  }
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.65rem 1.1rem;
+    font-size: 0.85rem; transition: transform 0.3s ease; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--error); color: var(--error); }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .hint { font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 1.25rem; }
+  .hint span { color: var(--accent); cursor: pointer; }
+  .strength-bar { display: flex; gap: 4px; margin-top: 6px; }
+  .strength-bar div { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+  .strength-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; text-align: right; }
+  .check-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  .check-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background 0.2s; }
+  .check-row.pass .dot { background: var(--success); }
+  .check-row.pass { color: var(--text); }
+  .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+  .panel-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.5; }
+  .steps { display: flex; align-items: center; gap: 6px; margin-bottom: 1.5rem; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+  .step-dot.active { background: var(--accent); width: 20px; border-radius: 4px; }
+  .step-dot.done { background: var(--success); }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="brand">
+    <div class="brand-icon">💰</div>
+    <h1>Money Filter</h1>
+    <p>Track your income & expenses</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="mainTabs">
+      <button class="tab-btn active" id="tab-login">Sign in</button>
+      <button class="tab-btn" id="tab-signup">Create account</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="panel active" id="panel-login">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="login-password" placeholder="Your password" />
+          <button class="eye-btn" id="eye-login">👁</button>
+        </div>
+      </div>
+      <a class="forgot-link" id="forgot-link">Forgot password?</a>
+      <button class="btn-primary" id="btn-login">Sign in</button>
+      <p class="hint">No account? <span id="goto-signup">Create one for free</span></p>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="panel" id="panel-signup">
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" id="signup-name" placeholder="Ahmed Mohamed" />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="signup-password" placeholder="Create a password" />
+          <button class="eye-btn" id="eye-signup">👁</button>
+        </div>
+        <div class="strength-bar">
+          <div id="s1"></div><div id="s2"></div><div id="s3"></div><div id="s4"></div>
+        </div>
+        <div class="strength-label" id="strength-label"></div>
+        <div style="margin-top:10px">
+          <div class="check-row" id="chk-len"><div class="dot"></div>At least 8 characters</div>
+          <div class="check-row" id="chk-upper"><div class="dot"></div>Uppercase letter</div>
+          <div class="check-row" id="chk-num"><div class="dot"></div>Number</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirm password</label>
+        <input type="password" id="signup-confirm" placeholder="Repeat password" />
+      </div>
+      <button class="btn-primary" id="btn-signup">Create account</button>
+      <p class="hint">Already have an account? <span id="goto-login">Sign in</span></p>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div class="panel" id="panel-forgot">
+      <button class="back-link" id="back-btn">← Back to sign in</button>
+      <div class="steps">
+        <div class="step-dot active" id="fp-dot1"></div>
+        <div class="step-dot" id="fp-dot2"></div>
+        <div class="step-dot" id="fp-dot3"></div>
+      </div>
+
+      <div id="fp-step1">
+        <div class="panel-title">Reset your password</div>
+        <div class="panel-sub">Enter your email to get started.</div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="fp-email" placeholder="you@example.com" />
+        </div>
+        <button class="btn-primary" id="btn-fp1">Continue</button>
+      </div>
+
+      <div id="fp-step2" style="display:none">
+        <div class="panel-title">Verify your identity</div>
+        <div class="panel-sub">Enter your current password to confirm it's you.</div>
+        <div class="field">
+          <label>Current password</label>
+          <div class="input-wrap">
+            <input type="password" id="fp-old" placeholder="Current password" />
+            <button class="eye-btn" id="eye-fp-old">👁</button>
+          </div>
+        </div>
+        <button class="btn-primary" id="btn-fp2">Verify</button>
+      </div>
+
+      <div id="fp-step3" style="display:none">
+        <div class="panel-title">Set new password</div>
+        <div class="panel-sub">Choose a strong new password.</div>
+        <div class="field">
+          <label>New password</label>
+          <div class="input-wrap">
+            <input type="password" id="fp-new" placeholder="New password" />
+            <button class="eye-btn" id="eye-fp-new">👁</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Confirm new password</label>
+          <input type="password" id="fp-confirm" placeholder="Repeat new password" />
+        </div>
+        <button class="btn-primary" id="btn-fp3">Update password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const API = '/api/v1';
+
+// ── HELPERS ──
+function $(id) { return document.getElementById(id); }
+
+let toastTimer;
+function showToast(msg, type) {
+  const t = $('toast');
+  t.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function toggleEye(inputId, btn) {
+  const inp = $(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function showTab(tab) {
+  ['login','signup','forgot'].forEach(function(p) {
+    $('panel-' + p).classList.remove('active');
+  });
+  $('mainTabs').style.display = 'flex';
+  $('panel-' + tab).classList.add('active');
+  $('tab-login').classList.toggle('active', tab === 'login');
+  $('tab-signup').classList.toggle('active', tab === 'signup');
+}
+
+// ── EYE BUTTONS ──
+$('eye-login').addEventListener('click', function() { toggleEye('login-password', this); });
+$('eye-signup').addEventListener('click', function() { toggleEye('signup-password', this); });
+$('eye-fp-old').addEventListener('click', function() { toggleEye('fp-old', this); });
+$('eye-fp-new').addEventListener('click', function() { toggleEye('fp-new', this); });
+
+// ── TAB BUTTONS ──
+$('tab-login').addEventListener('click', function() { showTab('login'); });
+$('tab-signup').addEventListener('click', function() { showTab('signup'); });
+$('goto-signup').addEventListener('click', function() { showTab('signup'); });
+$('goto-login').addEventListener('click', function() { showTab('login'); });
+
+// ── FORGOT ──
+$('forgot-link').addEventListener('click', function() {
+  ['login','signup','forgot'].forEach(function(p) {
+    $('panel-' + p).classList.remove('active');
+  });
+  $('mainTabs').style.display = 'none';
+  $('panel-forgot').classList.add('active');
+  resetFpSteps();
+});
+$('back-btn').addEventListener('click', function() { showTab('login'); });
+
+// ── PASSWORD STRENGTH ──
+var strengthColors = ['#f25a5a', '#f0973a', '#f0c844', '#3ecf8e'];
+var strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
+$('signup-password').addEventListener('input', function() {
+  var v = this.value;
+  var s = 0;
+  if (v.length >= 8) s++;
+  if (/[A-Z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  for (var i = 1; i <= 4; i++) {
+    $('s' + i).style.background = i <= s ? strengthColors[s-1] : 'rgba(255,255,255,0.08)';
+  }
+  $('strength-label').textContent = v.length ? strengthLabels[s-1] || '' : '';
+  $('chk-len').classList.toggle('pass', v.length >= 8);
+  $('chk-upper').classList.toggle('pass', /[A-Z]/.test(v));
+  $('chk-num').classList.toggle('pass', /[0-9]/.test(v));
+});
+
+// ── LOGIN ──
+$('btn-login').addEventListener('click', async function() {
+  var email = $('login-email').value.trim();
+  var password = $('login-password').value;
+  if (!email || !password) { showToast('Please fill in all fields', 'error'); return; }
+  try {
+    var res = await fetch(API + '/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Login failed');
+    localStorage.setItem('token', data.token);
+    showToast('Welcome back!', 'success');
+    setTimeout(function() { window.location.href = '/dashboard.html'; }, 1500);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+});
+
+// ── SIGNUP ──
+$('btn-signup').addEventListener('click', async function() {
+  var name = $('signup-name').value.trim();
+  var email = $('signup-email').value.trim();
+  var password = $('signup-password').value;
+  var confirm = $('signup-confirm').value;
+  if (!name || !email || !password) { showToast('Please fill in all fields', 'error'); return; }
+  if (password !== confirm) { showToast('Passwords do not match', 'error'); return; }
+  if (password.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
+  try {
+    var res = await fetch(API + '/users/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, email: email, password: password })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Signup failed');
+    showToast('Account created! Please sign in.', 'success');
+    setTimeout(function() { showTab('login'); }, 1600);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+});
+
+// ── FORGOT PASSWORD ──
+var fpEmail = '';
+
+function resetFpSteps() {
+  $('fp-step1').style.display = 'block';
+  $('fp-step2').style.display = 'none';
+  $('fp-step3').style.display = 'none';
+  $('fp-dot1').className = 'step-dot active';
+  $('fp-dot2').className = 'step-dot';
+  $('fp-dot3').className = 'step-dot';
+}
+
+function setFpStep(n) {
+  $('fp-step1').style.display = n === 1 ? 'block' : 'none';
+  $('fp-step2').style.display = n === 2 ? 'block' : 'none';
+  $('fp-step3').style.display = n === 3 ? 'block' : 'none';
+  $('fp-dot1').className = 'step-dot' + (n === 1 ? ' active' : ' done');
+  $('fp-dot2').className = 'step-dot' + (n === 2 ? ' active' : n > 2 ? ' done' : '');
+  $('fp-dot3').className = 'step-dot' + (n === 3 ? ' active' : '');
+}
+
+$('btn-fp1').addEventListener('click', function() {
+  fpEmail = $('fp-email').value.trim();
+  if (!fpEmail) { showToast('Enter your email', 'error'); return; }
+  setFpStep(2);
+});
+
+$('btn-fp2').addEventListener('click', async function() {
+  var oldPassword = $('fp-old').value;
+  if (!oldPassword) { showToast('Enter your current password', 'error'); return; }
+  try {
+    var res = await fetch(API + '/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: fpEmail, password: oldPassword })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Incorrect password');
+    if (data.token) localStorage.setItem('_fp_token', data.token);
+    setFpStep(3);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+});
+
+$('btn-fp3').addEventListener('click', async function() {
+  var newPassword = $('fp-new').value;
+  var confirmPw = $('fp-confirm').value;
+  if (!newPassword) { showToast('Enter a new password', 'error'); return; }
+  if (newPassword.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
+  if (newPassword !== confirmPw) { showToast('Passwords do not match', 'error'); return; }
+  var token = localStorage.getItem('_fp_token');
+  try {
+    var res = await fetch(API + '/users/' + encodeURIComponent(fpEmail) + '/change-password', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        oldPassword: $('fp-old').value,
+        newPassword: newPassword
+      })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Could not update password');
+    localStorage.removeItem('_fp_token');
+    showToast('Password updated! Please sign in.', 'success');
+    setTimeout(function() { showTab('login'); }, 1600);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+});
+
+// ── ENTER KEY ──
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  var active = document.querySelector('.panel.active');
+  if (!active) return;
+  if (active.id === 'panel-login') $('btn-login').click();
+  if (active.id === 'panel-signup') $('btn-signup').click();
+});
+</script>
+</body>
+</html>
