@@ -1,5 +1,8 @@
-# Use official Node.js LTS image
-FROM node:20-alpine
+# Use Debian-based slim image (Alpine causes Prisma OpenSSL issues)
+FROM node:20-slim
+
+# Install OpenSSL (required by Prisma's query engine)
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Set working directory inside the container
 WORKDIR /app
@@ -20,5 +23,5 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 3000
 
-# Run database migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# Push schema to the database then start the server
+CMD ["sh", "-c", "npx prisma db push && node server.js"]
